@@ -70,20 +70,20 @@ fn move_to_dir(entry: DirEntry, to: &PathBuf) -> Result<()> {
 
 fn find_in_dir(dir: &PathBuf, name: &str) -> Option<PathBuf> {
     if let Some(first_word) = name.split(" ").next() {
+        println!("First word {}", first_word);
         for entry in dir
             .read_dir()
             .expect(&format!("Couldn't list {} entries", dir.display()))
         {
             if let Ok(entry) = entry {
                 if entry.path().is_dir() {
-                    for file in fs::read_dir(entry.path())
-                        .expect(&format!("Couldn't list {} entries", entry.path().display()))
+                    if entry
+                        .file_name()
+                        .to_str()
+                        .unwrap_or("")
+                        .contains(first_word)
                     {
-                        if let Ok(file) = file {
-                            if file.file_name().to_str().unwrap_or("").contains(first_word) {
-                                return Some(entry.path());
-                            }
-                        }
+                        return Some(entry.path());
                     }
                 }
             }
@@ -107,7 +107,10 @@ fn create_new_dir(parent: &PathBuf, name: &str) -> Option<PathBuf> {
 
 fn move_file(file: &PathBuf, to: &PathBuf) -> Result<()> {
     let mut new_path = PathBuf::from(to);
-    new_path.push(file);
-    fs::rename(file, new_path)?;
-    return Ok(());
+    if let Some(name) = file.file_name().unwrap().to_str() {
+        new_path.push(name);
+        fs::rename(file, new_path)?;
+        return Ok(());
+    }
+    return Err(anyhow!("Couldn't get the file name"));
 }
