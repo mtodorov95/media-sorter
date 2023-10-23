@@ -28,9 +28,9 @@ fn get_source(dir: Option<PathBuf>) -> Result<PathBuf> {
         return Ok(v);
     }
 
-    let loc = std::env::var("HOME").context("unable to get HOME")?;
-    let mut loc = PathBuf::from(loc);
-    loc.push("/Hestia/Downloads");
+    let loc = get_path(true)?;
+    let loc = PathBuf::from(loc);
+    loc.try_exists()?;
     return Ok(loc);
 }
 
@@ -39,9 +39,28 @@ fn get_target(dir: Option<PathBuf>) -> Result<PathBuf> {
         return Ok(v);
     }
 
-    let loc = std::env::var("HOME").context("unable to get HOME")?;
-    let mut loc = PathBuf::from(loc);
-    loc.push("/Hestia/TV");
+    let loc = get_path(false)?;
+    let loc = PathBuf::from(loc);
+    loc.try_exists()?;
+    return Ok(loc);
+}
+
+fn get_path(is_src: bool) -> Result<String> {
+    let mut env_var = "SORTER_TARGET_DIR";
+    let mut subdir = "/Videos";
+    if is_src {
+        env_var = "SORTER_SRC_DIR";
+        subdir = "/Downloads";
+    }
+    let loc = match std::env::var(env_var) {
+        Ok(v) => v,
+        Err(_) => {
+            println!("Env variable {} not found. Using default", env_var);
+            let home = std::env::var("HOME").context("Unable to get $HOME")?;
+            let home = String::from(home + subdir);
+            home
+        }
+    };
     return Ok(loc);
 }
 
@@ -58,24 +77,26 @@ mod test {
     use std::path::PathBuf;
 
     use super::Config;
-    use crate::opts::Opts;
-    use anyhow::{Result, Context};
+    use crate::{config::get_path, opts::Opts};
+    use anyhow::Result;
 
     #[test]
     fn from_opts_default() -> Result<()> {
+        std::env::remove_var("SORTER_SRC_DIR");
+        std::env::remove_var("SORTER_TARGET_DIR");
+
         let config: Config = Opts {
             src: None,
             target: None,
-            ext: None
+            ext: None,
         }
         .try_into()?;
 
-        let t = std::env::var("HOME").context("unable to get HOME")?;
-        let mut t = PathBuf::from(t);
-        t.push("/Hestia/TV");
-        let s = std::env::var("HOME").context("unable to get HOME")?;
-        let mut s = PathBuf::from(s);
-        s.push("/Hestia/Downloads");
+        let home = std::env::var("HOME")?;
+        let mut t = PathBuf::from(&home);
+        t.push("Videos");
+        let mut s = PathBuf::from(&home);
+        s.push("Downloads");
         assert_eq!(config.src, s);
         assert_eq!(config.target, t);
         assert_eq!(config.ext, String::from("mp4"));
@@ -96,6 +117,24 @@ mod test {
         assert_eq!(config.target, PathBuf::from("/bar"));
         assert_eq!(config.ext, String::from("mkv"));
 
+        return Ok(());
+    }
+
+    #[test]
+    fn get_pathbuf_src() -> Result<()> {
+        std::env::remove_var("SORTER_SRC_DIR");
+        let mut home = std::env::var("HOME")?;
+        home.push_str("/Downloads");
+        assert_eq!(get_path(true)?, home);
+        return Ok(());
+    }
+
+    #[test]
+    fn get_pathbuf_target() -> Result<()> {
+        std::env::remove_var("SORTER_TARGET_DIR");
+        let mut home = std::env::var("HOME")?;
+        home.push_str("/Videos");
+        assert_eq!(get_path(false)?, home);
         return Ok(());
     }
 }
