@@ -1,4 +1,4 @@
-# rust-media-sorter 
+# media-sorter 
 
 ## TODO
 - Add a help command
