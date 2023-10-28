@@ -15,6 +15,8 @@ pub struct Sorter {
 
 impl Sorter {
     pub fn sort(&self) -> Result<()> {
+        let mut has_sorted_files = false;
+
         for entry in self
             .src
             .read_dir()
@@ -25,10 +27,15 @@ impl Sorter {
                     Some(ext) if ext == self.ext.as_str() => {
                         let new_path = Sorter::rename_downloaded_file(&mut entry)?;
                         self.move_to_dir(new_path, &self.target)?;
+                        has_sorted_files = true;
                     }
                     _ => {}
                 }
             }
+        }
+
+        if !has_sorted_files {
+            println!("No {} files found in {:?}.", self.ext, self.src);
         }
 
         return Ok(());

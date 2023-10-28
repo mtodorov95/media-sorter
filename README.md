@@ -1,8 +1,5 @@
 # media-sorter 
 
-## TODO
-- Add a help command
-
 ## Summary
 A simple file sorting application for when you have many individual files in a folder that need to be grouped in their
 own folders. I use it for videos but it should work just the same for other file types as well.
