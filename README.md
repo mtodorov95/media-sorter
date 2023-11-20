@@ -12,6 +12,7 @@ You can pass the following command line args:
 -src/--s - The directory to be used as a source for the files (Default: $HOME/Downloads)
 -target/--t - The directory to put the files into (Default: $HOME/Videos)
 -ext/--e - The extension for the files to be sorted (Default: mp4)
+-k - Keeps the original file name (By default any prefixes - "[prefix] filename.mp4" - are removed)
 ```
 
 To change the default folders set the following env variables to whatever you need:

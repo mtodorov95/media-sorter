@@ -25,4 +25,10 @@ pub struct Opts {
         help = "The extension for the files to be sorted (Default: mp4)"
     )]
     pub ext: Option<String>,
+
+    #[clap(
+        short = 'k',
+        help = "Keeps file prefixes and does not rename the files"
+    )]
+    pub keep: bool,
 }

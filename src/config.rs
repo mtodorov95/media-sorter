@@ -9,6 +9,7 @@ pub struct Config {
     pub src: PathBuf,
     pub target: PathBuf,
     pub ext: String,
+    pub keep: bool,
 }
 
 impl TryFrom<Opts> for Config {
@@ -18,8 +19,14 @@ impl TryFrom<Opts> for Config {
         let src = get_source(opts.src)?;
         let target = get_target(opts.target)?;
         let ext = get_extension(opts.ext);
+        let keep = opts.keep;
 
-        return Ok(Config { src, target, ext });
+        return Ok(Config {
+            src,
+            target,
+            ext,
+            keep,
+        });
     }
 }
 
@@ -89,6 +96,7 @@ mod test {
             src: None,
             target: None,
             ext: None,
+            keep: false,
         }
         .try_into()?;
 
@@ -100,6 +108,7 @@ mod test {
         assert_eq!(config.src, s);
         assert_eq!(config.target, t);
         assert_eq!(config.ext, String::from("mp4"));
+        assert_eq!(config.keep, false);
 
         return Ok(());
     }
@@ -110,12 +119,14 @@ mod test {
             src: Some(PathBuf::from("/foo")),
             target: Some(PathBuf::from("/bar")),
             ext: Some(String::from("mkv")),
+            keep: true,
         }
         .try_into()?;
 
         assert_eq!(config.src, PathBuf::from("/foo"));
         assert_eq!(config.target, PathBuf::from("/bar"));
         assert_eq!(config.ext, String::from("mkv"));
+        assert_eq!(config.keep, true);
 
         return Ok(());
     }
