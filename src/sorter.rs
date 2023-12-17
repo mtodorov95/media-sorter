@@ -51,13 +51,19 @@ impl Sorter {
 
     fn move_to_dir(&self, name: &str, from: &PathBuf, to: &PathBuf) -> Result<()> {
         if let Some(existing_dir) = Sorter::find_in_dir(&to, &name) {
+            println!("Moving {:?} to existing dir {:?}", from, existing_dir);
             Sorter::move_file(from, &existing_dir)?;
             return Ok(());
         }
         if let Some(new_dir) = Sorter::create_new_dir(&to, &name) {
+            println!("Moving {:?} to new dir {:?}", from, new_dir);
             Sorter::move_file(from, &new_dir)?;
             return Ok(());
         }
+        println!(
+            "Can't find or create dir for {:?}, from {:?}, to {:?}",
+            name, from, to
+        );
         return Err(anyhow!("Couldn't move file to directory"));
     }
 
@@ -100,19 +106,42 @@ impl Sorter {
     fn find_in_dir(dir: &PathBuf, name: &str) -> Option<PathBuf> {
         let name_without_prefix = Sorter::remove_prefix(name);
         let dir_name = Sorter::get_new_dir_name_from(name_without_prefix);
-        for entry in dir
+        let dir_name: String = dir_name
+            .split_whitespace()
+            .take(2)
+            .fold(String::new(), |acc, word| acc + word + " ");
+
+        return Sorter::temp(dir, &dir_name);
+    }
+
+    fn temp(path: &PathBuf, name: &str) -> Option<PathBuf> {
+        if path.is_file() {
+            if path
+                .file_name()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or("")
+                .contains(name)
+            {
+                match path.parent() {
+                    Some(p) => return Some(PathBuf::from(p)),
+                    None => return None,
+                }
+            }
+            return None;
+        }
+
+        for entry in path
             .read_dir()
-            .expect(&format!("Couldn't list {:?} entries", dir))
+            .expect(&format!("Couldn't list {:?} entries", path))
         {
             if let Ok(entry) = entry {
-                if entry.path().is_dir() {
-                    if entry.file_name().to_str().unwrap_or("").contains(dir_name) {
-                        return Some(entry.path());
-                    }
+                let res = Sorter::temp(&entry.path(), name);
+                if res.is_some() {
+                    return res;
                 }
             }
         }
-
         return None;
     }
 
@@ -266,6 +295,55 @@ mod test {
         let name = "filename";
         let dir_name = Sorter::get_new_dir_name_from(name);
         assert_eq!(dir_name, "filename");
+        return Ok(());
+    }
+
+    #[test]
+    fn finds_dir_containing_file_with_similar_name() -> Result<()> {
+        let current_dir = std::env::current_dir()?;
+        let temp_dir = current_dir.join("temp");
+        let existing_dir = temp_dir.join("Some long name");
+        let file =
+            "Some long name that doesn't need to fully match! 2nd season - 14 (1920x1080 x264 AAC).txt";
+        let existing_file = existing_dir.join("Some long name that doesn't - 12.txt");
+        std::fs::create_dir_all(&existing_dir)?;
+        std::fs::write(existing_file, "Something")?;
+
+        let path = Sorter::find_in_dir(&temp_dir, file);
+        assert_eq!(path, Some(existing_dir.clone()));
+        std::fs::remove_dir_all(existing_dir)?;
+        return Ok(());
+    }
+
+    #[test]
+    fn finds_dir_with_random_name_containing_file_with_similar_name() -> Result<()> {
+        let current_dir = std::env::current_dir()?;
+        let temp_dir = current_dir.join("temp");
+        let existing_dir = temp_dir.join("Random name");
+        let file = "A very cool series - EP 02.txt";
+        let existing_file = existing_dir.join("A very cool series - EP 01.txt");
+        std::fs::create_dir_all(&existing_dir)?;
+        std::fs::write(existing_file, "Something")?;
+
+        let path = Sorter::find_in_dir(&temp_dir, file);
+        assert_eq!(path, Some(existing_dir.clone()));
+        std::fs::remove_dir_all(existing_dir)?;
+        return Ok(());
+    }
+
+    #[test]
+    fn finds_nested_dir_with_random_name_containing_file_with_similar_name() -> Result<()> {
+        let current_dir = std::env::current_dir()?;
+        let temp_dir = current_dir.join("temp");
+        let existing_dir = temp_dir.join("TV/2023/WTF");
+        let file = "Best show - EP 02.txt";
+        let existing_file = existing_dir.join("Best show - EP 01.txt");
+        std::fs::create_dir_all(&existing_dir)?;
+        std::fs::write(existing_file, "Something")?;
+
+        let path = Sorter::find_in_dir(&temp_dir, file);
+        assert_eq!(path, Some(existing_dir.clone()));
+        std::fs::remove_dir_all(temp_dir.join("TV"))?;
         return Ok(());
     }
 
