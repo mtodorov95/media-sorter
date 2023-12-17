@@ -59,7 +59,7 @@ impl Sorter {
             Sorter::move_file(from, &existing_dir)?;
             return Ok(());
         }
-        if let Ok(new_dir) = Sorter::create_new_dir(&to, &name) {
+        if let Some(new_dir) = Sorter::create_new_dir(&to, &name) {
             Sorter::move_file(from, &new_dir)?;
             return Ok(());
         }
@@ -75,10 +75,10 @@ impl Sorter {
         if let Some(name) = file.file_name().to_str() {
             let new_name = Sorter::remove_prefix(name);
             let new_path = Sorter::get_new_path(&file.path(), new_name);
-            fs::rename(file.path(), &new_path).context(format!("Failed to rename {:?}", file))?;
+            fs::rename(file.path(), &new_path).context(format!("Failed to rename {}", file))?;
             return Ok(new_path);
         }
-        return Err(anyhow!("Couldn't parse file name for {:?} to string", file));
+        return Err(anyhow!("Couldn't get file name"));
     }
 
     fn remove_prefix(value: &str) -> &str {
@@ -114,10 +114,10 @@ impl Sorter {
             .take(2)
             .fold(String::new(), |acc, word| acc + word + " ");
 
-        return Sorter::find_similarly_named_in(dir, &dir_name);
+        return Sorter::temp(dir, &dir_name);
     }
 
-    fn find_similarly_named_in(path: &PathBuf, name: &str) -> Option<PathBuf> {
+    fn temp(path: &PathBuf, name: &str) -> Option<PathBuf> {
         if path.is_file() {
             if path
                 .file_name()
@@ -134,9 +134,12 @@ impl Sorter {
             return None;
         }
 
-        for entry in path.read_dir().expect("should always be a directory") {
+        for entry in path
+            .read_dir()
+            .expect(&format!("Couldn't list {:?} entries", path))
+        {
             if let Ok(entry) = entry {
-                let res = Sorter::find_similarly_named_in(&entry.path(), name);
+                let res = Sorter::temp(&entry.path(), name);
                 if res.is_some() {
                     return res;
                 }
@@ -145,11 +148,13 @@ impl Sorter {
         return None;
     }
 
-    fn create_new_dir(parent: &PathBuf, name: &str) -> Result<PathBuf> {
+    fn create_new_dir(parent: &PathBuf, name: &str) -> Option<PathBuf> {
         let name = Sorter::get_new_dir_name_from(name);
         let new_dir = PathBuf::from(parent).join(name);
-        fs::create_dir(&new_dir)?;
-        return Ok(new_dir);
+        if fs::create_dir(&new_dir).is_ok() {
+            return Some(new_dir);
+        }
+        return None;
     }
 
     fn get_new_dir_name_from(file_name: &str) -> &str {
@@ -164,16 +169,12 @@ impl Sorter {
 
     fn move_file(file: &PathBuf, to: &PathBuf) -> Result<()> {
         let mut new_path = PathBuf::from(to);
-        if let Some(name) = file
-            .file_name()
-            .ok_or(anyhow!("Couldn't get filename for {:?}", file))?
-            .to_str()
-        {
+        if let Some(name) = file.file_name().unwrap().to_str() {
             new_path.push(name);
             fs::rename(file, new_path)?;
             return Ok(());
         }
-        return Err(anyhow!("Couldn't parse file name for {:?} to string", file));
+        return Err(anyhow!("Couldn't get the file name"));
     }
 
     pub fn from_config(config: Config) -> Self {
