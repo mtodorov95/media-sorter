@@ -10,7 +10,7 @@ use crate::config::Config;
 pub struct Sorter {
     src: PathBuf,
     target: PathBuf,
-    ext: String,
+    ext: Vec<String>,
     keep: bool,
 }
 
@@ -23,7 +23,11 @@ impl Sorter {
         ))? {
             if let Ok(mut entry) = entry {
                 match entry.path().extension() {
-                    Some(ext) if ext == self.ext.as_str() => {
+                    Some(ext)
+                        if self
+                            .ext
+                            .contains(&ext.to_str().unwrap_or_default().to_string()) =>
+                    {
                         let file_path = match self.keep {
                             true => entry.path(),
                             false => Sorter::rename_downloaded_file(&mut entry)?,
@@ -48,7 +52,7 @@ impl Sorter {
         }
 
         if !has_sorted_files {
-            println!("No {} files found in {:?}", self.ext, self.src);
+            println!("No {:?} files found in {:?}", self.ext, self.src);
         }
 
         return Ok(());
@@ -188,6 +192,8 @@ impl Sorter {
 
 #[cfg(test)]
 mod test {
+    use std::fs::File;
+
     use anyhow::Result;
 
     use crate::opts::Opts;
@@ -222,7 +228,7 @@ mod test {
         std::fs::write(file_path, "Some value")?;
 
         let config = Opts {
-            ext: Some("txt".to_string()),
+            ext: Some(vec!["txt".to_string()]),
             target: Some(temp_dir.clone()),
             src: Some(temp_dir.clone()),
             keep: false,
@@ -254,7 +260,7 @@ mod test {
         std::fs::write(file_path, "Some value")?;
 
         let config = Opts {
-            ext: Some("txt".to_string()),
+            ext: Some(vec!["txt".to_string()]),
             target: Some(temp_dir.clone()),
             src: Some(temp_dir.clone()),
             keep: true,
@@ -271,6 +277,47 @@ mod test {
                 assert_eq!(entry.file_name().to_str().unwrap(), "[prefix]keeps_prefix");
             }
         }
+
+        std::fs::remove_dir_all(temp_dir)?;
+        return Ok(());
+    }
+
+    #[test]
+    fn sorts_multiple_files_with_different_extensions_correctly() -> Result<()> {
+        let file1 = "[prefix]Cool show e01.mkv";
+        let file2 = "[prefix]Cool show e02.mp4";
+        let file3 = "[prefix]Cool show e03.mkv";
+        let file4 = "[prefix]Other show e07.mp4";
+
+        let current_dir = std::env::current_dir()?;
+        let temp_dir = current_dir.join("temp");
+        let tv_dir = temp_dir.join("tv");
+        let some_dir = tv_dir.join("some-dir");
+
+        let file_path1 = some_dir.join(file1);
+        let file_path2 = temp_dir.join(file2);
+        let file_path3 = temp_dir.join(file3);
+        let file_path4 = temp_dir.join(file4);
+
+        std::fs::create_dir_all(&some_dir)?;
+        File::create(file_path1)?;
+        File::create(file_path2)?;
+        File::create(file_path3)?;
+        File::create(file_path4)?;
+
+        let config = Opts {
+            ext: Some(vec!["mkv".to_string(), "mp4".to_string()]),
+            target: Some(tv_dir.clone()),
+            src: Some(temp_dir.clone()),
+            keep: false,
+        }
+        .try_into()?;
+        let sorter = Sorter::from_config(config);
+        sorter.sort()?;
+
+        let files = some_dir.read_dir().unwrap().count();
+
+        assert_eq!(files, 3);
 
         std::fs::remove_dir_all(temp_dir)?;
         return Ok(());

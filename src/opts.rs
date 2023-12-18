@@ -22,9 +22,10 @@ pub struct Opts {
     #[clap(
         short = 'e',
         long = "ext",
-        help = "The extension for the files to be sorted (Default: mp4)"
+        num_args = 1..,
+        help = "The extensions for the files to be sorted as a space separated list (Default: mp4)"
     )]
-    pub ext: Option<String>,
+    pub ext: Option<Vec<String>>,
 
     #[clap(
         short = 'k',

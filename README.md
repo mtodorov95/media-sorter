@@ -11,7 +11,7 @@ You can pass the following command line args:
 ```
 -s/--src - The directory to be used as a source for the files (Default: $HOME/Downloads)
 -t/--target - The directory to put the files into (Default: $HOME/Videos)
--e/--ext - The extension for the files to be sorted (Default: mp4)
+-e/--ext - The extensions for the files to be sorted as a space separated list (Default: mp4)
 -k - Keeps the original file name (By default any prefixes - "[prefix] filename.mp4" - are removed)
 ```
 

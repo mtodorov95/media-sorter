@@ -8,7 +8,7 @@ use crate::opts::Opts;
 pub struct Config {
     pub src: PathBuf,
     pub target: PathBuf,
-    pub ext: String,
+    pub ext: Vec<String>,
     pub keep: bool,
 }
 
@@ -71,12 +71,12 @@ fn get_path(is_src: bool) -> Result<String> {
     return Ok(loc);
 }
 
-fn get_extension(ext: Option<String>) -> String {
+fn get_extension(ext: Option<Vec<String>>) -> Vec<String> {
     if let Some(v) = ext {
         return v;
     }
 
-    return String::from("mp4");
+    return vec![String::from("mp4")];
 }
 
 #[cfg(test)]
@@ -107,7 +107,7 @@ mod test {
         s.push("Downloads");
         assert_eq!(config.src, s);
         assert_eq!(config.target, t);
-        assert_eq!(config.ext, String::from("mp4"));
+        assert_eq!(config.ext, vec![String::from("mp4")]);
         assert_eq!(config.keep, false);
 
         return Ok(());
@@ -118,14 +118,32 @@ mod test {
         let config: Config = Opts {
             src: Some(PathBuf::from("/foo")),
             target: Some(PathBuf::from("/bar")),
-            ext: Some(String::from("mkv")),
+            ext: Some(vec![String::from("mkv")]),
             keep: true,
         }
         .try_into()?;
 
         assert_eq!(config.src, PathBuf::from("/foo"));
         assert_eq!(config.target, PathBuf::from("/bar"));
-        assert_eq!(config.ext, String::from("mkv"));
+        assert_eq!(config.ext, vec![String::from("mkv")]);
+        assert_eq!(config.keep, true);
+
+        return Ok(());
+    }
+
+    #[test]
+    fn from_opts_with_multiple_extensions() -> Result<()> {
+        let config: Config = Opts {
+            src: Some(PathBuf::from("/foo")),
+            target: Some(PathBuf::from("/bar")),
+            ext: Some(vec![String::from("mkv"), String::from("mp4")]),
+            keep: true,
+        }
+        .try_into()?;
+
+        assert_eq!(config.src, PathBuf::from("/foo"));
+        assert_eq!(config.target, PathBuf::from("/bar"));
+        assert_eq!(config.ext, vec![String::from("mkv"), String::from("mp4")]);
         assert_eq!(config.keep, true);
 
         return Ok(());
