@@ -33,7 +33,7 @@ impl Sorter {
                             false => Sorter::rename_downloaded_file(&mut entry)?,
                         };
                         let file_name = file_path
-                            .file_name()
+                            .file_stem()
                             .ok_or(anyhow!(
                                 "Couldn't get file name for file path {:?}",
                                 file_path
@@ -156,13 +156,15 @@ impl Sorter {
         return Ok(new_dir);
     }
 
-    fn get_new_dir_name_from(file_name: &str) -> &str {
+    fn get_new_dir_name_from(file_name: &str) -> String {
         return match file_name.find("-") {
-            Some(idx) => file_name[0..idx].trim(),
-            None => match file_name.find(".") {
-                Some(idx) => file_name[0..idx].trim(),
-                None => file_name,
-            },
+            Some(idx) => file_name[0..idx].trim().to_string(),
+            None => file_name
+                .split_whitespace()
+                .take(2)
+                .fold(String::new(), |acc, word| acc + word + " ")
+                .trim()
+                .to_string(),
         };
     }
 
@@ -325,7 +327,7 @@ mod test {
 
     #[test]
     fn gets_correct_dir_name_from_filename_with_dashes() -> Result<()> {
-        let name = "filename-withdash.txt";
+        let name = "filename-withdash";
         let dir_name = Sorter::get_new_dir_name_from(name);
         assert_eq!(dir_name, "filename");
         return Ok(());
@@ -333,9 +335,9 @@ mod test {
 
     #[test]
     fn gets_correct_dir_name_from_filename_without_dashes() -> Result<()> {
-        let name = "filename.txt";
+        let name = "filename that might be very long";
         let dir_name = Sorter::get_new_dir_name_from(name);
-        assert_eq!(dir_name, "filename");
+        assert_eq!(dir_name, "filename that");
         return Ok(());
     }
 
